@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ManyFaces</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-logo">◉</div>
+      <div class="brand-text">
+        <h1>ManyFaces</h1>
+        <span>Anti-detect browser manager</span>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button id="import-btn" class="ghost" title="Import profiles from a ManyFaces export (.json)">⇪ Import</button>
+      <input id="import-file" type="file" accept=".json,application/json" hidden />
+      <button id="bulk-btn" class="ghost">⚙ Bulk create</button>
+      <button id="phone-btn" class="ghost">📱 New Phone</button>
+      <button id="new-btn" class="primary">+ New Profile</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Engine setup: shown only while the Camoufox browser isn't downloaded yet -->
+    <div id="engine-banner" class="engine-banner hidden">
+      <div class="engine-banner-text">
+        <strong id="engine-title">Camoufox browser not downloaded yet</strong>
+        <span id="engine-sub">One-time download (~1.3 GB). Needed to launch Camoufox profiles; Chromium and Android profiles work without it.</span>
+        <div class="progress hidden-block" id="engine-progress"><div class="progress-bar" id="engine-bar"></div></div>
+      </div>
+      <button id="engine-download" class="primary">⬇ Download engine</button>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="count" id="profile-count"></span>
+        <div class="chips" id="filter-chips"></div>
+      </div>
+      <div class="search-wrap">
+        <span class="search-ic">🔍</span>
+        <input id="search" class="search" type="text" placeholder="Search profiles…" />
+      </div>
+    </div>
+
+    <!-- Bulk-action bar: appears when one or more rows are selected -->
+    <div id="bulk-bar" class="bulk-bar hidden">
+      <label class="sel-all"><input type="checkbox" id="bulk-master" /> <span id="bulk-count">0 selected</span></label>
+      <div class="bulk-actions">
+        <button data-bulk="launch" class="sm primary">▶ Launch</button>
+        <button data-bulk="stop" class="sm">■ Stop</button>
+        <button data-bulk="randomize" class="sm">🎲 Randomize</button>
+        <button data-bulk="export" class="sm">⇩ Export</button>
+        <button data-bulk="delete" class="sm danger">🗑 Delete</button>
+        <button data-bulk="clear" class="sm ghost">Clear</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table id="profiles">
+        <thead>
+          <tr>
+            <th class="col-check"><input type="checkbox" id="head-check" title="Select all" /></th>
+            <th>Name</th><th>Device</th><th>Proxy</th>
+            <th class="hide-sm">Locale</th>
+            <th>Status</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="profiles-body">
+          <tr><td colspan="7" class="empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- ------------------------------------------------ Profile editor modal --- -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="modal-title">New Profile</h2>
+        <button id="modal-close" class="icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <div class="field">
+            <label>Name</label>
+            <input id="f-name" type="text" placeholder="Store account #1" />
+          </div>
+          <div class="field">
+            <label>Device / operating system</label>
+            <select id="f-os">
+              <option value="">Random (mostly desktop)</option>
+              <option value="windows">🪟 Windows</option>
+              <option value="macos">🍎 macOS</option>
+              <option value="linux">🐧 Linux</option>
+              <option value="android">📱 Android phone</option>
+              <option value="ios">🍏 iPhone (iOS)</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Start URL</label>
+            <input id="f-url" type="text" placeholder="example.com" value="about:blank" />
+          </div>
+          <div class="field">
+            <label>Browser engine</label>
+            <select id="f-engine">
+              <option value="camoufox">🦊 Camoufox — max stealth (Firefox)</option>
+              <option value="chromium">🌐 Chromium — compatibility + real phone UI</option>
+              <option value="android">🤖 Android — real device (AVD emulator)</option>
+            </select>
+          </div>
+        </div>
+        <div class="field hint" id="engine-hint" style="margin-top:-4px"></div>
+        <div class="row">
+          <div class="field">
+            <label>Tags <span class="hint">— comma-separated, searchable</span></label>
+            <input id="f-tags" type="text" placeholder="shop, client-a" />
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <input id="f-notes" type="text" placeholder="Anything to remember about this profile" />
+          </div>
+        </div>
+
+        <fieldset>
+          <legend>Proxy</legend>
+          <div class="segmented" id="proxy-mode">
+            <button type="button" data-mode="manual" class="active">Manual</button>
+            <button type="button" data-mode="random">Random</button>
+            <button type="button" data-mode="rotate">Rotate</button>
+          </div>
+
+          <!-- Manual: single proxy -->
+          <div id="proxy-manual">
+            <div class="row">
+              <div class="field small">
+                <label>Type</label>
+                <select id="f-ptype">
+                  <option value="http">HTTP</option>
+                  <option value="https">HTTPS</option>
+                  <option value="socks5">SOCKS5</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Host</label>
+                <input id="f-phost" type="text" placeholder="1.2.3.4" />
+              </div>
+              <div class="field small">
+                <label>Port</label>
+                <input id="f-pport" type="number" placeholder="8080" />
+              </div>
+            </div>
+            <div class="row">
+              <div class="field">
+                <label>Username</label>
+                <input id="f-puser" type="text" />
+              </div>
+              <div class="field">
+                <label>Password</label>
+                <input id="f-ppass" type="password" />
+              </div>
+              <div class="field btn-field">
+                <label>&nbsp;</label>
+                <button id="test-proxy" class="ghost">Test</button>
+              </div>
+            </div>
+            <div id="proxy-result" class="proxy-result"></div>
+          </div>
+
+          <!-- Random / Rotate: proxy pool -->
+          <div id="proxy-pool-box" class="hidden-block">
+            <div class="row">
+              <div class="field small">
+                <label>Default type</label>
+                <select id="f-pool-type">
+                  <option value="http">HTTP</option>
+                  <option value="https">HTTPS</option>
+                  <option value="socks5">SOCKS5</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Proxy list <span class="hint">— one per line</span></label>
+                <textarea id="f-pool" placeholder="1.2.3.4:8080&#10;socks5://5.6.7.8:1080&#10;host:port:user:pass&#10;http://user:pass@host:port"></textarea>
+              </div>
+            </div>
+            <div class="pool-summary" id="pool-summary"></div>
+            <div class="pool-actions">
+              <button id="fetch-free" class="ghost sm">⬇ Fetch free proxies</button>
+              <button id="test-pool" class="ghost sm">Test all proxies</button>
+              <button id="pick-proxy" class="ghost sm">☑ Choose one to use</button>
+              <label class="check inline"><input type="checkbox" id="free-verify" checked /> only keep live ones</label>
+            </div>
+            <div class="pool-list hidden-block" id="pool-list"></div>
+            <div class="field hint" style="margin-top:8px">Free proxies are public &amp; unreliable — fetch, keep the live ones, and re-test before relying on them.</div>
+            <div class="field hint" id="pool-mode-hint" style="margin-top:6px"></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Hardening</legend>
+          <label class="check"><input type="checkbox" id="f-humanize" checked /> Humanize cursor movement</label>
+          <label class="check"><input type="checkbox" id="f-webrtc" checked /> Block WebRTC IP leaks</label>
+          <label class="check"><input type="checkbox" id="f-geoip" checked /> Match locale &amp; timezone to proxy (GeoIP)</label>
+        </fieldset>
+
+        <div id="fp-preview" class="fp-preview"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="modal-cancel" class="ghost">Cancel</button>
+        <button id="modal-save" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------- Bulk create modal ---- -->
+  <div id="bulk-modal" class="modal hidden">
+    <div class="modal-card sm">
+      <div class="modal-head">
+        <h2>Bulk create profiles</h2>
+        <button id="bulk-close" class="icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="field hint" style="margin-top:0">Each profile gets a fully-randomized, coherent fingerprint and a fresh cookie jar.</p>
+        <div class="row">
+          <div class="field small">
+            <label>How many</label>
+            <input id="bulk-count" type="number" value="10" min="1" max="200" />
+          </div>
+          <div class="field">
+            <label>Name prefix</label>
+            <input id="bulk-prefix" type="text" value="Profile" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label>Device / OS</label>
+            <select id="bulk-os">
+              <option value="">Random mix (incl. Android)</option>
+              <option value="windows">🪟 Windows</option>
+              <option value="macos">🍎 macOS</option>
+              <option value="linux">🐧 Linux</option>
+              <option value="android">📱 Android phone</option>
+              <option value="ios">🍏 iPhone (iOS)</option>
+            </select>
+          </div>
+          <div class="field small">
+            <label>Cookies each</label>
+            <input id="bulk-cookies" type="number" value="15" min="0" max="200" />
+          </div>
+        </div>
+        <div class="field">
+          <label>Browser engine</label>
+          <select id="bulk-engine">
+            <option value="camoufox">🦊 Camoufox — max stealth (Firefox)</option>
+            <option value="chromium">🌐 Chromium — compatibility + real phone UI</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="bulk-cancel" class="ghost">Cancel</button>
+        <button id="bulk-create" class="primary">Create</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------- New phone modal ----- -->
+  <div id="phone-modal" class="modal hidden">
+    <div class="modal-card sm">
+      <div class="modal-head">
+        <h2>📱 New phone profile</h2>
+        <button id="phone-close" class="icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Phone type</label>
+          <div class="seg" id="phone-mode">
+            <button type="button" class="seg-btn active" data-mode="emulated">⚡ Emulated <span>instant</span></button>
+            <button type="button" class="seg-btn" data-mode="android">🤖 Real Android <span>AVD</span></button>
+          </div>
+        </div>
+        <p class="field hint" style="margin-top:-4px" id="phone-mode-hint"></p>
+        <div class="field">
+          <label>Name</label>
+          <input id="phone-name" type="text" placeholder="Phone account #1" />
+        </div>
+        <div class="field" id="phone-device-field">
+          <label>Device</label>
+          <select id="phone-device"><option value="">Loading devices…</option></select>
+        </div>
+        <div class="phone-device-info" id="phone-device-info"></div>
+        <div class="field">
+          <label>Start URL <span class="hint">— optional</span></label>
+          <input id="phone-url" type="text" placeholder="example.com" />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="phone-cancel" class="ghost">Cancel</button>
+        <button id="phone-create" class="ghost">Create</button>
+        <button id="phone-launch" class="primary">Create &amp; launch</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ------------------------------------------------ Android setup modal --- -->
+  <div id="android-modal" class="modal hidden">
+    <div class="modal-card sm">
+      <div class="modal-head">
+        <h2>🤖 Real Android engine</h2>
+        <button id="android-close" class="icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="field hint" style="margin-top:0">This boots a <strong>real Android device</strong> in the official emulator — a genuine Chrome-for-Android engine, not a fingerprint spoof. It's free. First-time setup downloads the Android SDK + a system image (<strong>a few GB</strong>), a small mirror app (scrcpy) that displays the phone in a clean window with real touch, and, if needed, a Java runtime. The device runs headless with <strong>hardware GPU</strong> and is shown through the mirror. The first boot takes ~1–2 min; after that it <strong>quickboots in seconds</strong>. Each device needs ~4–5 GB free disk.</p>
+        <div id="android-status-box" class="android-status">Checking…</div>
+        <div id="android-log" class="android-log hidden-block"></div>
+      </div>
+      <div class="modal-foot">
+        <button id="android-cancel" class="ghost">Close</button>
+        <button id="android-install" class="primary">Install Android engine</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ----------------------------------------------------- Cookies modal ---- -->
+  <div id="cookie-modal" class="modal hidden">
+    <div class="modal-card sm">
+      <div class="modal-head">
+        <h2>Cookies</h2>
+        <button id="cookie-close" class="icon">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="field hint" id="cookie-info" style="margin-top:0"></p>
+        <div class="field">
+          <label>Import cookies <span class="hint">— Playwright / browser-extension JSON array; replaces the staged jar</span></label>
+          <textarea id="cookie-json" placeholder='[{"name": "sid", "value": "…", "domain": ".example.com", "path": "/"}]'></textarea>
+        </div>
+        <div class="pool-actions">
+          <button id="cookie-import" class="ghost sm">⇪ Import JSON</button>
+          <button id="cookie-export" class="ghost sm">⇩ Export JSON</button>
+        </div>
+        <div class="row" style="margin-top:14px">
+          <div class="field">
+            <label>Add random test cookies</label>
+            <input id="cookie-count" type="number" value="10" min="1" max="200" />
+          </div>
+          <div class="field btn-field">
+            <label>&nbsp;</label>
+            <button id="cookie-add" class="ghost">Add</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button id="cookie-clear" class="ghost danger">Clear all</button>
+        <button id="cookie-done" class="primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
+<title>Start</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+    color: #fff;
+    background: linear-gradient(160deg, #1b2735 0%, #0f1620 55%, #090c11 100%);
+    display: flex; flex-direction: column; align-items: center;
+    padding: 0 22px; min-height: 100%;
+  }
+  .clock { margin-top: 16vh; text-align: center; }
+  .clock .t { font-size: 64px; font-weight: 300; letter-spacing: -1px; line-height: 1; }
+  .clock .d { margin-top: 6px; font-size: 15px; opacity: .6; }
+  form { width: 100%; max-width: 460px; margin-top: 34px; position: relative; }
+  input {
+    width: 100%; border: none; outline: none; border-radius: 999px;
+    padding: 16px 20px 16px 50px; font-size: 16px;
+    background: rgba(255,255,255,.12); color: #fff; backdrop-filter: blur(8px);
+  }
+  input::placeholder { color: rgba(255,255,255,.55); }
+  .mag { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); opacity: .6; font-size: 17px; }
+  .grid {
+    width: 100%; max-width: 460px; margin-top: 30px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 8px;
+  }
+  a.app { text-decoration: none; color: #fff; text-align: center; font-size: 12px; opacity: .92; }
+  a.app .ic {
+    width: 56px; height: 56px; margin: 0 auto 7px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; font-size: 26px;
+    background: rgba(255,255,255,.1); box-shadow: 0 6px 16px rgba(0,0,0,.3);
+  }
+  a.app:active .ic { transform: scale(.94); }
+  .hint { margin-top: auto; padding: 20px 66px 80px; font-size: 12px; opacity: .38; text-align: center; }
+</style>
+</head>
+<body>
+  <div class="clock"><div class="t" id="t">--:--</div><div class="d" id="d"></div></div>
+
+  <form id="f">
+    <span class="mag">🔍</span>
+    <input id="q" type="text" inputmode="search" autocomplete="off" autocapitalize="off"
+           autocorrect="off" placeholder="Search or enter address" />
+  </form>
+
+  <div class="grid">
+    <a class="app" href="https://www.google.com"><div class="ic">🔎</div>Google</a>
+    <a class="app" href="https://m.youtube.com"><div class="ic">▶️</div>YouTube</a>
+    <a class="app" href="https://mail.google.com"><div class="ic">✉️</div>Gmail</a>
+    <a class="app" href="https://maps.google.com"><div class="ic">🗺️</div>Maps</a>
+    <a class="app" href="https://www.instagram.com"><div class="ic">📷</div>Instagram</a>
+    <a class="app" href="https://x.com"><div class="ic">✖️</div>X</a>
+    <a class="app" href="https://www.facebook.com"><div class="ic">👤</div>Facebook</a>
+    <a class="app" href="https://www.amazon.com"><div class="ic">🛒</div>Amazon</a>
+  </div>
+
+  <div class="hint">Tip: swipe back with <b>Alt + ←</b> or the on-screen ‹ button</div>
+
+<script>
+  const two = (n) => String(n).padStart(2, "0");
+  function tick() {
+    const now = new Date();
+    document.getElementById("t").textContent = two(now.getHours()) + ":" + two(now.getMinutes());
+    document.getElementById("d").textContent = now.toLocaleDateString(undefined,
+      { weekday: "long", month: "long", day: "numeric" });
+  }
+  tick(); setInterval(tick, 15000);
+
+  // Turn whatever's typed into a real navigation: a bare domain → https://,
+  // anything else → a Google search. Fixes the old "wrong link doesn't work".
+  document.getElementById("f").addEventListener("submit", (e) => {
+    e.preventDefault();
+    let v = document.getElementById("q").value.trim();
+    if (!v) return;
+    const looksLikeUrl = /^[a-z]+:\/\//i.test(v) ||
+      (/^[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(v) && !v.includes(" "));
+    location.href = looksLikeUrl
+      ? (/^[a-z]+:\/\//i.test(v) ? v : "https://" + v)
+      : "https://www.google.com/search?q=" + encodeURIComponent(v);
+  });
+</script>
+</body>
+</html>
